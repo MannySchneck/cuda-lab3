@@ -29,7 +29,7 @@ static uint32_t next_bin(uint32_t pix)
         const uint16_t bottom = pix & ((1<<HISTO_LOG)-1);
         const uint16_t top   = (uint16_t)(pix >> HISTO_LOG);
 
-        int new_bottom = NEXT(bottom, SPREAD_BOTTOM)
+        int new_bottom = NEXT(bottom, SPREAD_BOTTOM) // this is evil. Where's the semicolon?
                 CLAMP(new_bottom, 0, HISTO_WIDTH-1)
 
                 int new_top = NEXT(top, SPREAD_TOP)
@@ -89,26 +89,35 @@ int main(int argc, char* argv[])
 
         /* Include your setup code below (temp variables, function calls, etc.) */
 
-        uint8_t *d_result = NULL;
+        uint32_t *d_result = NULL;
         uint32_t *d_data = NULL;
 
-        setup(d_result, d_data, input);
+        setup(&d_result, &d_data, input);
 
         /* End of setup code */
 
         /* This is the call you will use to time your parallel implementation */
         TIME_IT("opt_2dhisto",
                 1000,
-                opt_2dhisto(d_data, d_result, INPUT_HEIGHT * INPUT_WIDTH););
+                opt_2dhisto(d_data, d_result););
 
         /* Include your teardown code below (temporary variables, function calls, etc.) */
 
         teardown(d_result, kernel_bins, d_data);
         /* End of teardown code */
 
+        printf("The true result, and the actual result:\n");
+
+        for(int i = 0; i <NUM_BINS; i++){
+                printf("%d, %d\n", gold_bins[i], kernel_bins[i]);
+        }
+
         int passed=1;
         for (int i=0; i < HISTO_HEIGHT*HISTO_WIDTH; i++){
                 if (gold_bins[i] != kernel_bins[i]){
+                        printf("failure at bin %d", i);
+                        printf("Correct is %d\n", gold_bins[i]);
+                        printf("Actual  is %d\n", kernel_bins[i]);
                         passed = 0;
                         break;
                 }
