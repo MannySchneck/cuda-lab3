@@ -10,7 +10,7 @@
 #define HISTO_HEIGHT 1
 #define NUM_BINS (HISTO_WIDTH * HISTO_HEIGHT)
 #define HISTO_LOG 10
-#define BLOCK_SIZE 32
+#define BLOCK_SIZE 1024
 
 #define UINT8_MAX 255
 

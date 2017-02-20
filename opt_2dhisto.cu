@@ -28,35 +28,24 @@ __global__ void opt_2dhisto_kernel(uint32_t *d_data, uint32_t *d_bins){
 
         const int numThreads = blockDim.x * gridDim.x;
 
-        __shared__ uint32_t s_Hist[NUM_BINS];
+        __shared__ data_tile[32];
 
-        // 0 out shared memory for current block
-        for (int pos = threadIdx.x;
-             pos < NUM_BINS;
-             pos += blockDim.x){
-                s_Hist[pos] = 0;
+        __shared__ local_hist[BLOCK_SIZE];
+
+        // block local loading of shmem
+
+        if(globalTid % PADDED_INPUT_WIDTH < INPUT_WIDTH){
+                data_tile[threadIdx.x] = d_data[gobalTid];
         }
-        __syncthreads();
 
-        // make partial histogram in shared memory
-        for (int pos = globalTid;
-             pos < PADDED_INPUT_SIZE;
-             pos+= numThreads)
-                if(pos % PADDED_INPUT_WIDTH < INPUT_WIDTH) {
-                        uint32_t data = d_data[pos];
-                        // handle rollover
-                        atomicAdd(s_Hist + data, 1);
-                }
-        __syncthreads();
+        // build local histogram out of shmem
+        for(i = 0; i < 32; i++){
+                local_hist[data_tile[(threadIdx.x + i) % 32]] += 1; // IMPLICITLY ASSUMES 1 WARP PER BLOCK
+        }
 
-        // merge partial histograms to global result
-        // atomic add will prevent cross-block races
         for(int pos = threadIdx.x; pos < NUM_BINS; pos += blockDim.x){
-                atomicAdd(d_bins + pos, s_Hist[pos]);
-                atomicMin(d_bins + pos, 255);
+                d_bins[pos] = local_hist[pos];
         }
-
-        __syncthreads();
 }
 
 void setup(uint32_t **d_result, uint32_t **d_data, uint32_t **h_data)
