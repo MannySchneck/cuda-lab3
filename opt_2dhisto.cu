@@ -12,7 +12,7 @@ __global__ void opt_2dhisto_kernel(uint32_t *d_data, uint32_t *d_bins);
 
 void opt_2dhisto(uint32_t *d_data, uint32_t *d_bins)
 {
-        static int gridsz = INPUT_SIZE / BLOCK_SIZE + 1;
+        static int gridsz = PADDED_INPUT_SIZE / BLOCK_SIZE + 1;
         static dim3 dimgrid(gridsz);
         static dim3 dimblock(BLOCK_SIZE);
 
@@ -40,12 +40,13 @@ __global__ void opt_2dhisto_kernel(uint32_t *d_data, uint32_t *d_bins){
 
         // make partial histogram in shared memory
         for (int pos = globalTid;
-             pos < INPUT_SIZE;
-             pos+= numThreads){
-                uint32_t data = d_data[pos];
-                // handle rollover
-                atomicAdd(s_Hist + data, 1);
-        }
+             pos < PADDED_INPUT_SIZE;
+             pos+= numThreads)
+                if(pos % PADDED_INPUT_WIDTH < INPUT_WIDTH) {
+                        uint32_t data = d_data[pos];
+                        // handle rollover
+                        atomicAdd(s_Hist + data, 1);
+                }
         __syncthreads();
 
         // merge partial histograms to global result
@@ -65,7 +66,7 @@ void setup(uint32_t **d_result, uint32_t **d_data, uint32_t **h_data)
         cudaMalloc((void **) d_data, PADDED_INPUT_SIZE * sizeof(uint32_t));
         // pointers get mutated. Woo double indirection
         for(int i = 0; i < INPUT_HEIGHT; i++){
-                cudaMemcpy(*d_data + i * PADDED_INPUT_WIDTH, 
+                cudaMemcpy(*d_data + i * PADDED_INPUT_WIDTH,
                            (*h_data + i * PADDED_INPUT_WIDTH), // ignoring shitty outer array
                            PADDED_INPUT_WIDTH * sizeof(uint32_t),
                            cudaMemcpyHostToDevice);
@@ -81,7 +82,7 @@ void teardown(uint32_t *d_result, uint8_t *kernel_bins,  uint32_t *d_data)
                    cudaMemcpyDeviceToHost);
 
         for(int i = 0; i < NUM_BINS; i++){
-                kernel_bins[i] = (uint8_t) (h_result[i] & 0xFFU);
+                kernel_bins[i] = (h_result[i] > UINT8_MAX) ? 255 : h_result[i];
         }
 
         cudaFree(d_data);
