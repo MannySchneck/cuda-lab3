@@ -4,6 +4,7 @@
 #define __USE_BSD 1
 #define INPUT_WIDTH  3984
 #define INPUT_HEIGHT 4096
+#define INPUT_SIZE (INPUT_HEIGHT * INPUT_WIDTH)
 
 
 #include <stdio.h>
