@@ -28,19 +28,21 @@ __global__ void opt_2dhisto_kernel(uint32_t *d_data, uint32_t *d_bins){
 
         const int numThreads = blockDim.x * gridDim.x;
 
-        __shared__ data_tile[32];
+        __shared__ uint32_t data_tile[32];
 
-        __shared__ local_hist[BLOCK_SIZE];
+        __shared__ uint32_t local_hist[NUM_BINS];
 
         // block local loading of shmem
 
         if(globalTid % PADDED_INPUT_WIDTH < INPUT_WIDTH){
-                data_tile[threadIdx.x] = d_data[gobalTid];
+                data_tile[threadIdx.x] = d_data[globalTid];
         }
 
         // build local histogram out of shmem
-        for(i = 0; i < 32; i++){
-                local_hist[data_tile[(threadIdx.x + i) % 32]] += 1; // IMPLICITLY ASSUMES 1 WARP PER BLOCK
+        for(int pos = threadIdx.x; pos < NUM_BINS; pos += blockDim.x){
+                for(int i = 0; i < 32; i++){
+                        local_hist[pos] += pos  == data_tile[(pos + i) % 32]; // IMPLICITLY ASSUMES 1 WARP PER BLOCK
+                }
         }
 
         for(int pos = threadIdx.x; pos < NUM_BINS; pos += blockDim.x){
