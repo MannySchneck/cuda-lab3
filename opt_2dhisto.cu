@@ -53,7 +53,10 @@ __global__ void opt_2dhisto_kernel(uint32_t *d_data, uint32_t *d_bins){
         // atomic add will prevent cross-block races
         for(int pos = threadIdx.x; pos < NUM_BINS; pos += blockDim.x){
                 atomicAdd(d_bins + pos, s_Hist[pos]);
+                atomicMin(d_bins + pos, 255);
         }
+
+        __syncthreads();
 }
 
 void setup(uint32_t **d_result, uint32_t **d_data, uint32_t **h_data)
@@ -82,7 +85,7 @@ void teardown(uint32_t *d_result, uint8_t *kernel_bins,  uint32_t *d_data)
                    cudaMemcpyDeviceToHost);
 
         for(int i = 0; i < NUM_BINS; i++){
-                kernel_bins[i] = (h_result[i] > UINT8_MAX) ? 255 : h_result[i];
+                kernel_bins[i] = (h_result[i]); //> UINT8_MAX) ? 255 : h_result[i];
         }
 
         cudaFree(d_data);
